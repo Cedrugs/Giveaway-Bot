@@ -13,4 +13,4 @@ if __name__ == "__main__":
     except Exception as exc:
         print(exc)
 
-bot.run('Nzg0OTk0MzU4ODUxNDAzODM2.X8xY9w.y_qF9e9pRn7DZBC07-4rvfVK2II')
+bot.run('token')
