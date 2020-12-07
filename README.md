@@ -6,7 +6,7 @@ This is an example of a giveaway bot, not really my own, just improving it from 
 
 Create a pull request
 
-```bash
+```py
 python3 main.py
 ```
 
