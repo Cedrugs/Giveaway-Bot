@@ -22,4 +22,4 @@ python3 main.py
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
 ## Bug report
-For bug report, please contact *Cedric#1000* on discord or email me at samcedricgame@gmail.com.
+For bug report, please contact *Cedric#0002* on discord.
