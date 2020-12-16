@@ -1,12 +1,13 @@
 from discord.ext import commands, tasks
+from discord.ext.commands import Context
 from db import Database
 from dateutil import relativedelta
 
 import asyncio
-import random
 import datetime
 import logging
 import discord
+import random
 
 
 log = logging.getLogger(__name__)
@@ -32,12 +33,17 @@ class Giveaways(commands.Cog, name='Giveaway'):
             return -1
         try:
             val = int(time[:-1])
-        except:
+        except Exception as exc:
+            print(exc)
             return -2
         return val * time_dict[unit]
 
     @staticmethod
-    async def add_giveaway(ctx, channel: discord.TextChannel, time: int, prize: str, quickg=False):
+    def get_id(num_range: int):
+        return random.randint(100, num_range)
+
+    @staticmethod
+    async def add_giveaway(ctx, channel: discord.TextChannel, time: int, prize: str, gid: int, quickg=False):
         e = discord.Embed(color=ctx.author.color, title="Giveaway Time!", description=prize)
         end = datetime.datetime.utcnow() + datetime.timedelta(seconds=time)
         e.add_field(name="Ends at:", value=str(end.strftime('%Y-%m-%d %H:%M:%S')))
@@ -46,9 +52,24 @@ class Giveaways(commands.Cog, name='Giveaway'):
         msg = await channel.send(embed=e)
         await msg.add_reaction("🎉")
         await db.autoexecute(
-            "INSERT INTO giveaway(GuildID, ChannelID, MessageID, Prize, EndTime) VALUES(?, ?, ?, ?, ?)",
-            ctx.guild.id, channel.id, msg.id, prize, cv_time.strftime('%Y-%m-%d %H:%M:%S')
+            "INSERT INTO giveaway(GuildID, ChannelID, MessageID, Prize, EndTime, GiveawayID) VALUES(?, ?, ?, ?, ?, ?)",
+            ctx.guild.id, channel.id, msg.id, prize, cv_time.strftime('%Y-%m-%d %H:%M:%S'), gid
         )
+
+    @staticmethod
+    async def drop_giveaway(ctx: Context, gid: int):
+        g_data = await db.record("SELECT * FROM giveaway WHERE GuildID = ? AND GiveawayID = ?", ctx.guild.id, gid)
+        channel: discord.TextChannel = ctx.guild.get_channel(g_data[1])
+        if channel:
+            try:
+                message = await channel.fetch_message(g_data[2])
+                print(message)
+                await message.delete()
+            except discord.NotFound:
+                pass
+            except discord.Forbidden:
+                pass
+        await db.autoexecute("DELETE FROM giveaway WHERE GuildID = ? AND GiveawayID = ?", ctx.guild.id, gid)
 
     @tasks.loop(seconds=5)
     async def determine_winner(self):
@@ -94,7 +115,7 @@ class Giveaways(commands.Cog, name='Giveaway'):
     @commands.command(name="Giveaways", aliases=["quickgiv"])
     @commands.has_permissions(manage_messages=True)
     async def quickg(self, ctx, mins: int, *, prize: str):
-        return await self.add_giveaway(ctx, ctx.channel, mins * 60, prize, True)
+        return await self.add_giveaway(ctx, ctx.channel, mins * 60, prize, self.get_id(10000), True)
 
     @commands.command(name="Giveaway")
     @commands.has_permissions(manage_messages=True)
@@ -149,7 +170,13 @@ class Giveaways(commands.Cog, name='Giveaway'):
                        f"It will last: {answers[1].content}.")
 
         # Instead of having 2 same function, we're about to combine it xD
-        await self.add_giveaway(ctx, channel, time, prize)
+        await self.add_giveaway(ctx, channel, time, prize, self.get_id(10000))
+
+    @commands.command(aliases=['delgiv'])
+    @commands.has_permissions(manage_messages=True)
+    async def dropgiv(self, ctx, giveaway_id):
+        await self.drop_giveaway(ctx, int(giveaway_id))
+        await ctx.send(f"Giveaway with id `{giveaway_id}` has been deleted!")
 
 
 def setup(bot):
